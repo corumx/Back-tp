@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reservar habitación</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .container {
+      background: #ffffff;
+      padding: 30px 40px;
+      border-radius: 10px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2 {
+      color: #2c3e50;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin: 15px 0 5px;
+    }
+
+    input, select {
+      padding: 10px;
+      margin-bottom: 15px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    .habitacion {
+      background: #f9f9f9;
+      padding: 12px;
+      border: 1px solid #dcdcdc;
+      border-radius: 6px;
+      margin: 10px 0;
+      transition: background 0.3s, border 0.3s;
+    }
+
+    .habitacion:hover {
+      background: #e8f4ff;
+      cursor: pointer;
+    }
+
+    .selected {
+      border: 2px solid #3498db;
+      background: #e8f4ff;
+    }
+
+    .seccion {
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Reserva de habitación</h1>
+
+    <div class="seccion">
+      <label>Fecha de ingreso:</label>
+      <input type="date" id="fechaIngreso">
+      <label>Fecha de salida:</label>
+      <input type="date" id="fechaSalida">
+      <label>Capacidad (opcional):</label>
+      <input type="number" id="capacidad">
+      <button onclick="buscar()">Buscar habitaciones disponibles</button>
+    </div>
+
+    <div class="seccion" id="resultado"></div>
+
+    <div class="seccion" id="formReserva" style="display:none;">
+      <h2>Datos del cliente</h2>
+      <label>Cédula:</label>
+      <input type="text" id="cedula">
+
+      <div id="camposNuevos">
+        <label>Nombre:</label>
+        <input type="text" id="nombre">
+        <label>Apellido:</label>
+        <input type="text" id="apellido">
+      </div>
+
+      <label>Cantidad de personas:</label>
+      <input type="number" id="cantidadPersonas">
+      <button onclick="reservar()">Confirmar reserva</button>
+    </div>
+  </div>
+
+  <script>
+    let habitacionSeleccionada = null;
+    let habitaciones = [];
+
+    async function buscar() {
+      const fIngreso = document.getElementById('fechaIngreso').value;
+      const fSalida = document.getElementById('fechaSalida').value;
+      const capacidad = document.getElementById('capacidad').value;
+      if (!fIngreso || !fSalida) return alert('Ingresá las fechas');
+
+      let url = `http://localhost:3000/api/reservas/buscar?fechaIngreso=${fIngreso}&fechaSalida=${fSalida}`;
+      if (capacidad) url += `&capacidad=${capacidad}`;
+
+      const res = await fetch(url);
+      habitaciones = await res.json();
+
+      mostrarHabitaciones();
+    }
+
+    function mostrarHabitaciones() {
+      const cont = document.getElementById('resultado');
+      cont.innerHTML = `<h2>Habitaciones disponibles:</h2>`;
+
+      if (habitaciones.length === 0) {
+        cont.innerHTML += `<p>No hay habitaciones disponibles.</p>`;
+        return;
+      }
+
+      habitaciones.forEach((h, i) => {
+        const div = document.createElement('div');
+        div.className = 'habitacion';
+        div.innerHTML = `
+          <strong>Hotel:</strong> ${h.Hotel.nombre}<br>
+          <strong>Habitación:</strong> ${h.numero}<br>
+          <strong>Piso:</strong> ${h.piso}<br>
+          <strong>Capacidad:</strong> ${h.capacidad}<br>
+          <strong>Características:</strong> ${h.caracteristicas}
+        `;
+        div.onclick = () => seleccionarHabitacion(i, div);
+        cont.appendChild(div);
+      });
+    }
+
+    function seleccionarHabitacion(index, div) {
+      document.querySelectorAll('.habitacion').forEach(el => el.classList.remove('selected'));
+      div.classList.add('selected');
+      habitacionSeleccionada = habitaciones[index];
+      document.getElementById('formReserva').style.display = 'block';
+    }
+
+    document.getElementById('cedula').addEventListener('blur', async () => {
+      const cedula = document.getElementById('cedula').value;
+      const nombreInput = document.getElementById('nombre');
+      const apellidoInput = document.getElementById('apellido');
+
+      if (!cedula) return;
+
+      try {
+        const res = await fetch(`http://localhost:3000/api/clientes/${cedula}`);
+        if (res.ok) {
+          const cliente = await res.json();
+          nombreInput.value = cliente.nombre;
+          apellidoInput.value = cliente.apellido;
+          nombreInput.readOnly = true;
+          apellidoInput.readOnly = true;
+        } else {
+          nombreInput.value = '';
+          apellidoInput.value = '';
+          nombreInput.readOnly = false;
+          apellidoInput.readOnly = false;
+        }
+      } catch (err) {
+        console.error('Error al buscar cliente', err);
+      }
+    });
+
+    async function reservar() {
+      if (!habitacionSeleccionada) return alert('Seleccioná una habitación');
+
+      const fechaIngreso = document.getElementById('fechaIngreso').value;
+      const fechaSalida = document.getElementById('fechaSalida').value;
+      const cantidadPersonas = document.getElementById('cantidadPersonas').value;
+      const cedula = document.getElementById('cedula').value;
+      const nombre = document.getElementById('nombre').value;
+      const apellido = document.getElementById('apellido').value;
+
+      const body = {
+        fechaIngreso,
+        fechaSalida,
+        cantidadPersonas,
+        cedula,
+        habitacionId: habitacionSeleccionada.id
+      };
+
+      if (!nombre || !apellido) {
+        return alert('Completá nombre y apellido del cliente');
+      }
+
+      body.nombre = nombre;
+      body.apellido = apellido;
+
+      const res = await fetch('http://localhost:3000/api/reservas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        alert('Reserva realizada con éxito');
+        window.location.reload();
+      } else {
+        const err = await res.json();
+        alert('Error: ' + err.error);
+      }
+    }
+  </script>
+
+</body>
+</html>

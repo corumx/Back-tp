@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Listado de Reservas</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f6f9;
+      padding: 30px;
+      color: #333;
+      justify-content: center;
+      align-items: center;
+      display: flex;
+      flex-direction: column;
+    }
+    h1 {
+      color: #2980b9;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    label {
+      font-weight: 600;
+      margin-bottom: 5px;
+      display: block;
+      color: #34495e;
+    }
+    input, select, button {
+      width: 100%;
+      max-width: 400px;
+      padding: 10px;
+      margin-bottom: 15px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      color: #333;
+    }
+    button {
+      background-color: #2980b9;
+      color: white;
+      cursor: pointer;
+      border: none;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #3498db;
+    }
+    .reserva {
+      background: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .reserva strong {
+      color: #2980b9;
+    }
+    .reserva-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .reserva-item p {
+      margin: 0;
+      font-size: 14px;
+      color: #555;
+    }
+    .reserva-item div {
+      margin: 10px 0;
+    }
+    .reserva-item .boton-ver {
+      background-color: #3498db;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .reserva-item .boton-ver:hover {
+      background-color: #2980b9;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Listado de Reservas</h1>
+
+  <label for="hotelId">Hotel (obligatorio):</label>
+  <select id="hotelId">
+    <!-- Los hoteles serán cargados aquí -->
+    <option value="">Selecciona un hotel</option>
+  </select>
+
+  <label for="fechaIngreso">Fecha de Ingreso (obligatorio):</label>
+  <input type="date" id="fechaIngreso">
+
+  <label for="fechaSalida">Fecha de Salida (opcional):</label>
+  <input type="date" id="fechaSalida">
+
+  <label for="clienteId">Cliente (opcional):</label>
+  <input type="text" id="clienteId" placeholder="Cédula o nombre del cliente">
+
+  <button onclick="buscarReservas()">Buscar Reservas</button>
+
+  <div id="resultado"></div>
+
+  <script>
+    async function obtenerHoteles() {
+      try {
+        const response = await fetch('http://localhost:3000/api/hoteles');
+        const hoteles = await response.json();
+        const hotelSelect = document.getElementById('hotelId');
+
+        hoteles.forEach(hotel => {
+          const option = document.createElement('option');
+          option.value = hotel.id;
+          option.textContent = hotel.nombre;
+          hotelSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error al obtener los hoteles:', error);
+      }
+    }
+
+    async function buscarReservas() {
+      const hotelId = document.getElementById('hotelId').value;
+      const fechaIngreso = document.getElementById('fechaIngreso').value;
+      const fechaSalida = document.getElementById('fechaSalida').value;
+      const clienteId = document.getElementById('clienteId').value;
+
+      if (!hotelId || !fechaIngreso) {
+        alert('El hotel y la fecha de ingreso son obligatorios');
+        return;
+      }
+
+      let url = `http://localhost:3000/api/reservas?hotelId=${hotelId}&fechaIngreso=${fechaIngreso}`;
+      if (fechaSalida) url += `&fechaSalida=${fechaSalida}`;
+      if (clienteId) url += `&clienteId=${clienteId}`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        mostrarReservas(data);
+      } catch (error) {
+        console.error('Error al obtener las reservas:', error);
+        alert('Ocurrió un error al obtener las reservas');
+      }
+    }
+
+    function mostrarReservas(reservas) {
+      const cont = document.getElementById('resultado');
+      cont.innerHTML = '';
+
+      if (reservas.length === 0) {
+        cont.innerHTML = '<p>No se encontraron reservas con esos filtros.</p>';
+        return;
+      }
+
+      reservas.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'reserva';
+        div.innerHTML = `
+          <div class="reserva-item">
+            <div>
+              <strong>Hotel:</strong> ${r.Hotel?.nombre || 'No disponible'}<br>
+              <strong>Habitación:</strong> ${r.Habitacion?.numero} (Piso ${r.Habitacion?.piso})<br>
+              <strong>Cliente:</strong> ${r.Cliente?.nombre} ${r.Cliente?.apellido} (Cédula: ${r.Cliente?.cedula})<br>
+              <strong>Ingreso:</strong> ${r.fechaIngreso} - <strong>Salida:</strong> ${r.fechaSalida}<br>
+              <strong>Personas:</strong> ${r.cantidadPersonas}
+            </div>
+            
+          </div>
+        `;
+        cont.appendChild(div);
+      });
+    }
+
+    
+
+    // Cargar los hoteles al inicio
+    window.onload = obtenerHoteles;
+  </script>
+
+</body>
+</html>
