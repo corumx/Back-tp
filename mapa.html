@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mapa de Habitaciones</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --text: #1f2937;
+      --card-bg: #ffffff;
+      --border: #e5e7eb;
+      --shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      text-align: center;
+      padding: 40px 20px 20px;
+      background-color: var(--card-bg);
+      box-shadow: var(--shadow);
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+
+    .form-container {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    input, button {
+      padding: 10px 15px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease-in-out;
+    }
+
+    input {
+      width: 120px;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: var(--primary-dark);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px 50px;
+    }
+
+    .piso {
+      margin-top: 40px;
+    }
+
+    .piso h2 {
+      font-size: 20px;
+      margin-bottom: 15px;
+      color: var(--primary);
+      border-left: 4px solid var(--primary);
+      padding-left: 10px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 20px;
+    }
+
+    .habitacion {
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      transition: transform 0.2s;
+    }
+
+    .habitacion:hover {
+      transform: translateY(-4px);
+    }
+
+    .habitacion strong {
+      font-size: 18px;
+      display: block;
+      margin-bottom: 8px;
+      color: var(--primary-dark);
+    }
+
+    .habitacion small {
+      display: block;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    @media (max-width: 600px) {
+      .form-container {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      input, button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Mapa de habitaciones por piso</h1>
+    <div class="form-container">
+      <label for="hotelId">ID del Hotel:</label>
+      <input type="number" id="hotelId" value="1" min="1" />
+      <button onclick="cargarMapa()">Cargar Mapa</button>
+    </div>
+  </header>
+
+  <main id="mapaContainer" aria-live="polite">
+    <!-- Contenido dinámico aquí -->
+  </main>
+
+  <script>
+    async function cargarMapa() {
+      const hotelId = document.getElementById('hotelId').value.trim();
+      const container = document.getElementById('mapaContainer');
+      container.innerHTML = '';
+
+      if (!hotelId || parseInt(hotelId) <= 0) {
+        container.innerHTML = '<p style="color:red">Por favor ingrese un ID válido.</p>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`http://localhost:3000/api/habitaciones/mapa/${hotelId}`);
+        const data = await res.json();
+
+        if (!data || Object.keys(data).length === 0) {
+          container.innerHTML = '<p>No se encontraron habitaciones para este hotel.</p>';
+          return;
+        }
+
+        for (const piso in data) {
+          const pisoDiv = document.createElement('section');
+          pisoDiv.classList.add('piso');
+          pisoDiv.innerHTML = `<h2>Piso: ${piso}</h2>`;
+
+          const grid = document.createElement('div');
+          grid.classList.add('grid');
+
+          const habitaciones = data[piso].sort((a, b) => {
+            if (a.posicionY !== b.posicionY) return a.posicionY - b.posicionY;
+            return a.posicionX - b.posicionX;
+          });
+
+          habitaciones.forEach(h => {
+            const habDiv = document.createElement('div');
+            habDiv.classList.add('habitacion');
+            habDiv.innerHTML = `
+              <strong>Habitación ${h.numero}</strong>
+              Coordenadas: (${h.posicionX}, ${h.posicionY})<br>
+              Capacidad: ${h.capacidad}
+              <small>${h.caracteristicas}</small>
+            `;
+            grid.appendChild(habDiv);
+          });
+
+          pisoDiv.appendChild(grid);
+          container.appendChild(pisoDiv);
+        }
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = '<p style="color:red">Error al cargar los datos.</p>';
+      }
+    }
+  </script>
+
+</body>
+</html>
